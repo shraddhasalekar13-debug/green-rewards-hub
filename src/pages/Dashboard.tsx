@@ -118,10 +118,11 @@ const Dashboard = () => {
           <div className="bg-card rounded-2xl p-8 shadow-card">
             <h3 className="font-heading font-bold text-lg mb-6">📸 Upload Waste Evidence</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="border-2 border-dashed border-border rounded-2xl p-12 text-center hover:border-accent transition-colors cursor-pointer">
-                <Camera className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground text-sm">Drag & drop images or click to upload</p>
-              </div>
+              <label htmlFor="waste-upload" className="border-2 border-dashed border-border rounded-2xl p-12 text-center hover:border-accent transition-colors cursor-pointer flex flex-col items-center justify-center">
+                <Camera className="h-10 w-10 text-muted-foreground mb-3" />
+                <p className="text-muted-foreground text-sm">Click to upload from your device</p>
+                <input id="waste-upload" type="file" accept="image/*" multiple className="hidden" />
+              </label>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Location</label>
