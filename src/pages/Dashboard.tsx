@@ -40,6 +40,14 @@ const submissions = [
 const Dashboard = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [active, setActive] = useState("overview");
+  const [previews, setPreviews] = useState<string[]>([]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    const urls = Array.from(files).map((f) => URL.createObjectURL(f));
+    setPreviews((prev) => [...prev, ...urls]);
+  };
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -118,11 +126,28 @@ const Dashboard = () => {
           <div className="bg-card rounded-2xl p-8 shadow-card">
             <h3 className="font-heading font-bold text-lg mb-6">📸 Upload Waste Evidence</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <label htmlFor="waste-upload" className="border-2 border-dashed border-border rounded-2xl p-12 text-center hover:border-accent transition-colors cursor-pointer flex flex-col items-center justify-center">
-                <Camera className="h-10 w-10 text-muted-foreground mb-3" />
-                <p className="text-muted-foreground text-sm">Click to upload from your device</p>
-                <input id="waste-upload" type="file" accept="image/*" multiple className="hidden" />
-              </label>
+              <div className="space-y-3">
+                <label htmlFor="waste-upload" className="border-2 border-dashed border-border rounded-2xl p-8 text-center hover:border-accent transition-colors cursor-pointer flex flex-col items-center justify-center">
+                  <Camera className="h-10 w-10 text-muted-foreground mb-3" />
+                  <p className="text-muted-foreground text-sm">Click to upload from your device</p>
+                  <input id="waste-upload" type="file" accept="image/*" multiple className="hidden" onChange={handleFileChange} />
+                </label>
+                {previews.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {previews.map((src, i) => (
+                      <div key={i} className="relative w-16 h-16 rounded-xl overflow-hidden border border-border">
+                        <img src={src} alt={`Preview ${i + 1}`} className="w-full h-full object-cover" />
+                        <button
+                          onClick={() => setPreviews((p) => p.filter((_, idx) => idx !== i))}
+                          className="absolute top-0 right-0 bg-destructive text-destructive-foreground rounded-bl-lg p-0.5 text-xs leading-none"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Location</label>
