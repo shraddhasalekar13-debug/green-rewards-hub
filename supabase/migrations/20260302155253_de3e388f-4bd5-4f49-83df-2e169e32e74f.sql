@@ -1,0 +1,140 @@
+
+-- Create app_role enum
+CREATE TYPE public.app_role AS ENUM ('admin', 'user');
+
+-- Create profiles table
+CREATE TABLE public.profiles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
+  display_name TEXT,
+  avatar_url TEXT,
+  organization TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+-- Create user_roles table
+CREATE TABLE public.user_roles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  role app_role NOT NULL DEFAULT 'user',
+  UNIQUE(user_id, role)
+);
+
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+
+-- Security definer function for role checks
+CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role app_role)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_roles
+    WHERE user_id = _user_id AND role = _role
+  )
+$$;
+
+-- Create waste_submissions table
+CREATE TABLE public.waste_submissions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  image_urls TEXT[] NOT NULL DEFAULT '{}',
+  location TEXT NOT NULL,
+  description TEXT,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  points_awarded INTEGER NOT NULL DEFAULT 0,
+  admin_notes TEXT,
+  reviewed_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.waste_submissions ENABLE ROW LEVEL SECURITY;
+
+-- Create rewards table
+CREATE TABLE public.rewards (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  description TEXT,
+  points_cost INTEGER NOT NULL,
+  available BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.rewards ENABLE ROW LEVEL SECURITY;
+
+-- Create reward_redemptions table
+CREATE TABLE public.reward_redemptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  reward_id UUID REFERENCES public.rewards(id) ON DELETE CASCADE NOT NULL,
+  points_spent INTEGER NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.reward_redemptions ENABLE ROW LEVEL SECURITY;
+
+-- PROFILES POLICIES
+CREATE POLICY "Users can view own profile" ON public.profiles FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Admins can view all profiles" ON public.profiles FOR SELECT USING (public.has_role(auth.uid(), 'admin'));
+
+-- USER_ROLES POLICIES
+CREATE POLICY "Users can view own roles" ON public.user_roles FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Admins can view all roles" ON public.user_roles FOR SELECT USING (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Admins can manage roles" ON public.user_roles FOR ALL USING (public.has_role(auth.uid(), 'admin'));
+
+-- WASTE_SUBMISSIONS POLICIES
+CREATE POLICY "Users can view own submissions" ON public.waste_submissions FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own submissions" ON public.waste_submissions FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Admins can view all submissions" ON public.waste_submissions FOR SELECT USING (public.has_role(auth.uid(), 'admin'));
+CREATE POLICY "Admins can update submissions" ON public.waste_submissions FOR UPDATE USING (public.has_role(auth.uid(), 'admin'));
+
+-- REWARDS POLICIES
+CREATE POLICY "Anyone authed can view rewards" ON public.rewards FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Admins can manage rewards" ON public.rewards FOR ALL USING (public.has_role(auth.uid(), 'admin'));
+
+-- REWARD_REDEMPTIONS POLICIES
+CREATE POLICY "Users can view own redemptions" ON public.reward_redemptions FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own redemptions" ON public.reward_redemptions FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Admins can view all redemptions" ON public.reward_redemptions FOR SELECT USING (public.has_role(auth.uid(), 'admin'));
+
+-- Auto-create profile on signup
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.profiles (user_id, display_name)
+  VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'display_name', NEW.email));
+  
+  INSERT INTO public.user_roles (user_id, role)
+  VALUES (NEW.id, 'user');
+  
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Updated_at trigger
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SET search_path = public;
+
+CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_submissions_updated_at BEFORE UPDATE ON public.waste_submissions FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
