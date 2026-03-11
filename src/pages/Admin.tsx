@@ -282,30 +282,60 @@ const Admin = () => {
               ) : (
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-border text-left">
+                     <tr className="border-b border-border text-left">
                       <th className="pb-3 font-medium text-muted-foreground">Name</th>
                       <th className="pb-3 font-medium text-muted-foreground">Organization</th>
                       <th className="pb-3 font-medium text-muted-foreground">Role</th>
                       <th className="pb-3 font-medium text-muted-foreground">Joined</th>
+                      <th className="pb-3 font-medium text-muted-foreground">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map((u: any) => (
-                      <tr key={u.id} className="border-b border-border/50 last:border-none">
-                        <td className="py-3">{u.display_name || '—'}</td>
-                        <td className="py-3">{u.organization || '—'}</td>
-                        <td className="py-3">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                            u.user_roles?.some((r: any) => r.role === 'admin')
-                              ? 'bg-accent/10 text-accent'
-                              : 'bg-muted text-muted-foreground'
-                          }`}>
-                            {u.user_roles?.some((r: any) => r.role === 'admin') ? 'Admin' : 'User'}
-                          </span>
-                        </td>
-                        <td className="py-3">{new Date(u.created_at).toLocaleDateString()}</td>
-                      </tr>
-                    ))}
+                    {users.map((u: any) => {
+                      const isAdmin = u.user_roles?.some((r: any) => r.role === 'admin');
+                      return (
+                        <tr key={u.id} className="border-b border-border/50 last:border-none">
+                          <td className="py-3">{u.display_name || '—'}</td>
+                          <td className="py-3">{u.organization || '—'}</td>
+                          <td className="py-3">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                              isAdmin ? 'bg-accent/10 text-accent' : 'bg-muted text-muted-foreground'
+                            }`}>
+                              {isAdmin ? 'Admin' : 'User'}
+                            </span>
+                          </td>
+                          <td className="py-3">{new Date(u.created_at).toLocaleDateString()}</td>
+                          <td className="py-3">
+                            {!isAdmin && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button size="sm" variant="destructive" className="gap-1">
+                                    <Trash2 className="h-3.5 w-3.5" /> Remove
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Permanently delete user?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This will permanently remove <strong>{u.display_name || 'this user'}</strong> and all their data. This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => deleteUserMutation.mutate(u.user_id)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Delete permanently
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}
