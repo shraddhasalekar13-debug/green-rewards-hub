@@ -102,6 +102,25 @@ const Admin = () => {
     },
   });
 
+  // Delete user mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { user_id: userId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-submissions'] });
+      toast({ title: 'User permanently deleted' });
+    },
+    onError: (err: any) => {
+      toast({ title: 'Failed to delete user', description: err.message, variant: 'destructive' });
+    },
+  });
+
   // Stats
   const totalSubmissions = submissions.length;
   const approved = submissions.filter((s: any) => s.status === 'approved').length;
