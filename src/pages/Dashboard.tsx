@@ -227,7 +227,7 @@ const Dashboard = () => {
                       <div key={i} className="relative w-16 h-16 rounded-xl overflow-hidden border border-border">
                         <img src={src} alt={`Preview ${i + 1}`} className="w-full h-full object-cover" />
                         <button
-                          onClick={() => setPreviews((p) => p.filter((_, idx) => idx !== i))}
+                          onClick={() => handleRemovePreview(i)}
                           className="absolute top-0 right-0 bg-destructive text-destructive-foreground rounded-bl-lg p-0.5 text-xs leading-none"
                         >
                           ✕
