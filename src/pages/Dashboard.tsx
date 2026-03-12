@@ -191,10 +191,10 @@ const Dashboard = () => {
           {/* Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { icon: FileText, label: "Total Submissions", value: "127", color: "bg-secondary/10 text-secondary" },
-              { icon: CheckCircle, label: "Verified", value: "86", color: "bg-accent/10 text-accent" },
-              { icon: Gift, label: "Reward Points", value: "2,450", color: "bg-accent/10 text-accent" },
-              { icon: Clock, label: "Pending Reviews", value: "12", color: "bg-secondary/10 text-secondary" },
+              { icon: FileText, label: "Total Submissions", value: String(totalSubmissions), color: "bg-secondary/10 text-secondary" },
+              { icon: CheckCircle, label: "Verified", value: String(verified), color: "bg-accent/10 text-accent" },
+              { icon: Gift, label: "Reward Points", value: totalPoints.toLocaleString(), color: "bg-accent/10 text-accent" },
+              { icon: Clock, label: "Pending Reviews", value: String(pendingCount), color: "bg-secondary/10 text-secondary" },
             ].map((stat) => (
               <motion.div
                 key={stat.label}
