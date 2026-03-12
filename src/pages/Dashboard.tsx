@@ -45,13 +45,98 @@ const Dashboard = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [active, setActive] = useState("overview");
   const [previews, setPreviews] = useState<string[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
+  const [location, setLocation] = useState("");
+  const [description, setDescription] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  // Fetch user's submissions
+  const { data: userSubmissions = [], refetch: refetchSubmissions } = useQuery({
+    queryKey: ['my-submissions', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from('waste_submissions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    const urls = Array.from(files).map((f) => URL.createObjectURL(f));
+    const newFiles = e.target.files;
+    if (!newFiles) return;
+    const fileArr = Array.from(newFiles);
+    setFiles((prev) => [...prev, ...fileArr]);
+    const urls = fileArr.map((f) => URL.createObjectURL(f));
     setPreviews((prev) => [...prev, ...urls]);
   };
+
+  const handleRemovePreview = (index: number) => {
+    setPreviews((p) => p.filter((_, i) => i !== index));
+    setFiles((f) => f.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async () => {
+    if (!user) return;
+    if (files.length === 0) {
+      toast({ title: "Please upload at least one image", variant: "destructive" });
+      return;
+    }
+    if (!location.trim()) {
+      toast({ title: "Please enter a location", variant: "destructive" });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      // Upload images to storage
+      const imageUrls: string[] = [];
+      for (const file of files) {
+        const ext = file.name.split('.').pop();
+        const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from('waste-images')
+          .upload(path, file);
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage
+          .from('waste-images')
+          .getPublicUrl(path);
+        imageUrls.push(urlData.publicUrl);
+      }
+
+      // Insert submission
+      const { error } = await supabase.from('waste_submissions').insert({
+        user_id: user.id,
+        image_urls: imageUrls,
+        location: location.trim(),
+        description: description.trim() || null,
+      });
+      if (error) throw error;
+
+      toast({ title: "Submission sent successfully!" });
+      setPreviews([]);
+      setFiles([]);
+      setLocation("");
+      setDescription("");
+      refetchSubmissions();
+    } catch (err: any) {
+      toast({ title: "Submission failed", description: err.message, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Computed stats from real data
+  const totalSubmissions = userSubmissions.length;
+  const verified = userSubmissions.filter((s: any) => s.status === 'approved').length;
+  const pendingCount = userSubmissions.filter((s: any) => s.status === 'pending').length;
+  const totalPoints = userSubmissions.reduce((sum: number, s: any) => sum + (s.points_awarded || 0), 0);
 
   return (
     <div className="min-h-screen flex bg-background">
