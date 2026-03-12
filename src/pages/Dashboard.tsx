@@ -260,8 +260,8 @@ const Dashboard = () => {
                     onChange={(e) => setDescription(e.target.value)}
                   />
                 </div>
-                <Button variant="lime" size="lg" className="w-full">
-                  <Upload className="h-4 w-4 mr-1" /> Submit
+                <Button variant="lime" size="lg" className="w-full" onClick={handleSubmit} disabled={submitting}>
+                  <Upload className="h-4 w-4 mr-1" /> {submitting ? "Submitting..." : "Submit"}
                 </Button>
               </div>
             </div>
