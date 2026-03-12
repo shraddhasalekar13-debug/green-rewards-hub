@@ -250,32 +250,45 @@ const Dashboard = () => {
           </div>
 
           {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-card rounded-2xl p-6 shadow-card">
-              <h4 className="font-heading font-semibold mb-4">📊 Monthly Submissions</h4>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={barData}>
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} className="text-xs" />
-                  <YAxis axisLine={false} tickLine={false} className="text-xs" />
-                  <Tooltip />
-                  <Bar dataKey="submissions" fill="hsl(150, 68%, 55%)" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="bg-card rounded-2xl p-6 shadow-card">
-              <h4 className="font-heading font-semibold mb-4">🔄 Verification Status</h4>
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" label>
-                    {pieData.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+          {(() => {
+            const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const barData = months.map((month, idx) => ({
+              month,
+              submissions: userSubmissions.filter((s: any) => new Date(s.created_at).getMonth() === idx).length,
+            }));
+            const pieData = [
+              { name: "Verified", value: verified },
+              { name: "Pending", value: pendingCount },
+            ];
+            return (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-card rounded-2xl p-6 shadow-card">
+                  <h4 className="font-heading font-semibold mb-4">📊 Monthly Submissions</h4>
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={barData}>
+                      <XAxis dataKey="month" axisLine={false} tickLine={false} className="text-xs" />
+                      <YAxis axisLine={false} tickLine={false} className="text-xs" />
+                      <Tooltip />
+                      <Bar dataKey="submissions" fill="hsl(150, 68%, 55%)" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="bg-card rounded-2xl p-6 shadow-card">
+                  <h4 className="font-heading font-semibold mb-4">🔄 Verification Status</h4>
+                  <ResponsiveContainer width="100%" height={250}>
+                    <PieChart>
+                      <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" label>
+                        {pieData.map((_, i) => (
+                          <Cell key={i} fill={PIE_COLORS[i]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Submissions table */}
           <div className="bg-card rounded-2xl p-6 shadow-card overflow-x-auto">
