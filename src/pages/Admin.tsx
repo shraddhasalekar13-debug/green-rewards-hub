@@ -253,6 +253,7 @@ const Admin = () => {
                         </td>
                         <td className="py-3">{s.display_name}</td>
                         <td className="py-3">{s.location}</td>
+                        <td className="py-3 max-w-[200px] truncate">{s.description || '—'}</td>
                         <td className="py-3">{new Date(s.created_at).toLocaleDateString()}</td>
                         <td className="py-3">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${

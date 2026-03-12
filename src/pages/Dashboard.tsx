@@ -21,25 +21,7 @@ const sidebarItems = [
   { icon: User, label: "Profile", id: "profile" },
 ];
 
-const barData = [
-  { month: "Jan", submissions: 12 }, { month: "Feb", submissions: 19 },
-  { month: "Mar", submissions: 8 }, { month: "Apr", submissions: 25 },
-  { month: "May", submissions: 16 }, { month: "Jun", submissions: 30 },
-];
-
-const pieData = [
-  { name: "Verified", value: 68 },
-  { name: "Pending", value: 32 },
-];
 const PIE_COLORS = ["hsl(150, 68%, 55%)", "hsl(215, 90%, 44%)"];
-
-const submissions = [
-  { date: "2026-02-25", location: "Park Road, Sector 5", status: "Approved", points: 50 },
-  { date: "2026-02-22", location: "Main Market, Block A", status: "Pending", points: 0 },
-  { date: "2026-02-18", location: "School Ground, Lane 3", status: "Approved", points: 40 },
-  { date: "2026-02-15", location: "River Bank, Zone B", status: "Rejected", points: 0 },
-  { date: "2026-02-10", location: "Community Park", status: "Approved", points: 60 },
-];
 
 const Dashboard = () => {
   const [collapsed, setCollapsed] = useState(false);
