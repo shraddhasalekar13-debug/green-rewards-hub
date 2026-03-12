@@ -219,7 +219,7 @@ const Dashboard = () => {
                 <label htmlFor="waste-upload" className="border-2 border-dashed border-border rounded-2xl p-8 text-center hover:border-accent transition-colors cursor-pointer flex flex-col items-center justify-center">
                   <Camera className="h-10 w-10 text-muted-foreground mb-3" />
                   <p className="text-muted-foreground text-sm">Click to upload from your device</p>
-                  <input id="waste-upload" type="file" accept="image/*" multiple className="hidden" onChange={handleFileChange} />
+                   <input id="waste-upload" type="file" accept="image/*" multiple className="hidden" onChange={handleFileChange} />
                 </label>
                 {previews.length > 0 && (
                   <div className="flex flex-wrap gap-2">
