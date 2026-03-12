@@ -242,9 +242,11 @@ const Dashboard = () => {
                   <label className="block text-sm font-medium mb-2">Location</label>
                   <div className="relative">
                     <MapPin className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-                    <input
+                     <input
                       className="w-full pl-10 px-4 py-3 rounded-xl border border-border bg-background text-foreground focus:ring-2 focus:ring-accent focus:outline-none"
                       placeholder="Enter location or use auto-detect"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
                     />
                   </div>
                 </div>
