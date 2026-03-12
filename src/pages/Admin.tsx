@@ -233,8 +233,10 @@ const Admin = () => {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border text-left">
+                      <th className="pb-3 font-medium text-muted-foreground">Image</th>
                       <th className="pb-3 font-medium text-muted-foreground">User</th>
                       <th className="pb-3 font-medium text-muted-foreground">Location</th>
+                      <th className="pb-3 font-medium text-muted-foreground">Description</th>
                       <th className="pb-3 font-medium text-muted-foreground">Date</th>
                       <th className="pb-3 font-medium text-muted-foreground">Status</th>
                       <th className="pb-3 font-medium text-muted-foreground">Points</th>
