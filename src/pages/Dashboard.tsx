@@ -308,23 +308,23 @@ const Dashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {submissions.map((s, i) => (
-                  <tr key={i} className="border-b border-border/50 last:border-none">
-                    <td className="py-3">{s.date}</td>
+                {userSubmissions.map((s: any) => (
+                  <tr key={s.id} className="border-b border-border/50 last:border-none">
+                    <td className="py-3">{new Date(s.created_at).toLocaleDateString()}</td>
                     <td className="py-3">{s.location}</td>
                     <td className="py-3">
                       <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
-                        s.status === "Approved" ? "bg-accent/10 text-accent" :
-                        s.status === "Pending" ? "bg-secondary/10 text-secondary" :
+                        s.status === "approved" ? "bg-accent/10 text-accent" :
+                        s.status === "pending" ? "bg-secondary/10 text-secondary" :
                         "bg-destructive/10 text-destructive"
                       }`}>
-                        {s.status === "Approved" && <CheckCircle className="h-3 w-3" />}
-                        {s.status === "Pending" && <Clock className="h-3 w-3" />}
-                        {s.status === "Rejected" && <XCircle className="h-3 w-3" />}
+                        {s.status === "approved" && <CheckCircle className="h-3 w-3" />}
+                        {s.status === "pending" && <Clock className="h-3 w-3" />}
+                        {s.status === "rejected" && <XCircle className="h-3 w-3" />}
                         {s.status}
                       </span>
                     </td>
-                    <td className="py-3 font-semibold">{s.points > 0 ? `+${s.points}` : "—"}</td>
+                    <td className="py-3 font-semibold">{s.points_awarded > 0 ? `+${s.points_awarded}` : "—"}</td>
                   </tr>
                 ))}
               </tbody>
