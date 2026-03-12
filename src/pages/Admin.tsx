@@ -246,7 +246,12 @@ const Admin = () => {
                   <tbody>
                     {submissions.map((s: any) => (
                       <tr key={s.id} className="border-b border-border/50 last:border-none">
-                        <td className="py-3">{s.profiles?.display_name || 'Unknown'}</td>
+                        <td className="py-3">
+                          {s.image_urls && s.image_urls.length > 0 ? (
+                            <img src={s.image_urls[0]} alt="Waste" className="w-12 h-12 rounded-lg object-cover" />
+                          ) : '—'}
+                        </td>
+                        <td className="py-3">{s.display_name}</td>
                         <td className="py-3">{s.location}</td>
                         <td className="py-3">{new Date(s.created_at).toLocaleDateString()}</td>
                         <td className="py-3">
