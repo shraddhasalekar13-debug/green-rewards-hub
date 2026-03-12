@@ -256,6 +256,8 @@ const Dashboard = () => {
                     rows={3}
                     className="w-full px-4 py-3 rounded-xl border border-border bg-background text-foreground focus:ring-2 focus:ring-accent focus:outline-none resize-none"
                     placeholder="Describe the waste collected..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
                   />
                 </div>
                 <Button variant="lime" size="lg" className="w-full">
