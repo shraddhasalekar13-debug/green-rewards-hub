@@ -7,6 +7,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 
 const sidebarItems = [
   { icon: LayoutDashboard, label: "Overview", id: "overview" },
