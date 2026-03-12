@@ -54,8 +54,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Delete user with service role
+    // Delete user's submissions and related data first
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
+    await adminClient.from('waste_submissions').delete().eq('user_id', user_id);
+    await adminClient.from('reward_redemptions').delete().eq('user_id', user_id);
+
+    // Delete user with service role
     const { error } = await adminClient.auth.admin.deleteUser(user_id);
 
     if (error) {

@@ -39,10 +39,17 @@ const Admin = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('waste_submissions')
-        .select('*, profiles!waste_submissions_user_id_fkey(display_name)')
+        .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data;
+      // Fetch profile names for each unique user_id
+      const userIds = [...new Set(data.map((s: any) => s.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, display_name')
+        .in('user_id', userIds);
+      const profileMap = Object.fromEntries((profiles || []).map((p: any) => [p.user_id, p.display_name]));
+      return data.map((s: any) => ({ ...s, display_name: profileMap[s.user_id] || 'Unknown' }));
     },
   });
 
@@ -226,8 +233,10 @@ const Admin = () => {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border text-left">
+                      <th className="pb-3 font-medium text-muted-foreground">Image</th>
                       <th className="pb-3 font-medium text-muted-foreground">User</th>
                       <th className="pb-3 font-medium text-muted-foreground">Location</th>
+                      <th className="pb-3 font-medium text-muted-foreground">Description</th>
                       <th className="pb-3 font-medium text-muted-foreground">Date</th>
                       <th className="pb-3 font-medium text-muted-foreground">Status</th>
                       <th className="pb-3 font-medium text-muted-foreground">Points</th>
@@ -237,8 +246,14 @@ const Admin = () => {
                   <tbody>
                     {submissions.map((s: any) => (
                       <tr key={s.id} className="border-b border-border/50 last:border-none">
-                        <td className="py-3">{s.profiles?.display_name || 'Unknown'}</td>
+                        <td className="py-3">
+                          {s.image_urls && s.image_urls.length > 0 ? (
+                            <img src={s.image_urls[0]} alt="Waste" className="w-12 h-12 rounded-lg object-cover" />
+                          ) : '—'}
+                        </td>
+                        <td className="py-3">{s.display_name}</td>
                         <td className="py-3">{s.location}</td>
+                        <td className="py-3 max-w-[200px] truncate">{s.description || '—'}</td>
                         <td className="py-3">{new Date(s.created_at).toLocaleDateString()}</td>
                         <td className="py-3">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${

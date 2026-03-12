@@ -7,6 +7,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 
 const sidebarItems = [
   { icon: LayoutDashboard, label: "Overview", id: "overview" },
@@ -17,37 +21,104 @@ const sidebarItems = [
   { icon: User, label: "Profile", id: "profile" },
 ];
 
-const barData = [
-  { month: "Jan", submissions: 12 }, { month: "Feb", submissions: 19 },
-  { month: "Mar", submissions: 8 }, { month: "Apr", submissions: 25 },
-  { month: "May", submissions: 16 }, { month: "Jun", submissions: 30 },
-];
-
-const pieData = [
-  { name: "Verified", value: 68 },
-  { name: "Pending", value: 32 },
-];
 const PIE_COLORS = ["hsl(150, 68%, 55%)", "hsl(215, 90%, 44%)"];
-
-const submissions = [
-  { date: "2026-02-25", location: "Park Road, Sector 5", status: "Approved", points: 50 },
-  { date: "2026-02-22", location: "Main Market, Block A", status: "Pending", points: 0 },
-  { date: "2026-02-18", location: "School Ground, Lane 3", status: "Approved", points: 40 },
-  { date: "2026-02-15", location: "River Bank, Zone B", status: "Rejected", points: 0 },
-  { date: "2026-02-10", location: "Community Park", status: "Approved", points: 60 },
-];
 
 const Dashboard = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [active, setActive] = useState("overview");
   const [previews, setPreviews] = useState<string[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
+  const [location, setLocation] = useState("");
+  const [description, setDescription] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  // Fetch user's submissions
+  const { data: userSubmissions = [], refetch: refetchSubmissions } = useQuery({
+    queryKey: ['my-submissions', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from('waste_submissions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    const urls = Array.from(files).map((f) => URL.createObjectURL(f));
+    const newFiles = e.target.files;
+    if (!newFiles) return;
+    const fileArr = Array.from(newFiles);
+    setFiles((prev) => [...prev, ...fileArr]);
+    const urls = fileArr.map((f) => URL.createObjectURL(f));
     setPreviews((prev) => [...prev, ...urls]);
   };
+
+  const handleRemovePreview = (index: number) => {
+    setPreviews((p) => p.filter((_, i) => i !== index));
+    setFiles((f) => f.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async () => {
+    if (!user) return;
+    if (files.length === 0) {
+      toast({ title: "Please upload at least one image", variant: "destructive" });
+      return;
+    }
+    if (!location.trim()) {
+      toast({ title: "Please enter a location", variant: "destructive" });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      // Upload images to storage
+      const imageUrls: string[] = [];
+      for (const file of files) {
+        const ext = file.name.split('.').pop();
+        const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from('waste-images')
+          .upload(path, file);
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage
+          .from('waste-images')
+          .getPublicUrl(path);
+        imageUrls.push(urlData.publicUrl);
+      }
+
+      // Insert submission
+      const { error } = await supabase.from('waste_submissions').insert({
+        user_id: user.id,
+        image_urls: imageUrls,
+        location: location.trim(),
+        description: description.trim() || null,
+      });
+      if (error) throw error;
+
+      toast({ title: "Submission sent successfully!" });
+      setPreviews([]);
+      setFiles([]);
+      setLocation("");
+      setDescription("");
+      refetchSubmissions();
+    } catch (err: any) {
+      toast({ title: "Submission failed", description: err.message, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Computed stats from real data
+  const totalSubmissions = userSubmissions.length;
+  const verified = userSubmissions.filter((s: any) => s.status === 'approved').length;
+  const pendingCount = userSubmissions.filter((s: any) => s.status === 'pending').length;
+  const totalPoints = userSubmissions.reduce((sum: number, s: any) => sum + (s.points_awarded || 0), 0);
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -102,10 +173,10 @@ const Dashboard = () => {
           {/* Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { icon: FileText, label: "Total Submissions", value: "127", color: "bg-secondary/10 text-secondary" },
-              { icon: CheckCircle, label: "Verified", value: "86", color: "bg-accent/10 text-accent" },
-              { icon: Gift, label: "Reward Points", value: "2,450", color: "bg-accent/10 text-accent" },
-              { icon: Clock, label: "Pending Reviews", value: "12", color: "bg-secondary/10 text-secondary" },
+              { icon: FileText, label: "Total Submissions", value: String(totalSubmissions), color: "bg-secondary/10 text-secondary" },
+              { icon: CheckCircle, label: "Verified", value: String(verified), color: "bg-accent/10 text-accent" },
+              { icon: Gift, label: "Reward Points", value: totalPoints.toLocaleString(), color: "bg-accent/10 text-accent" },
+              { icon: Clock, label: "Pending Reviews", value: String(pendingCount), color: "bg-secondary/10 text-secondary" },
             ].map((stat) => (
               <motion.div
                 key={stat.label}
@@ -130,7 +201,7 @@ const Dashboard = () => {
                 <label htmlFor="waste-upload" className="border-2 border-dashed border-border rounded-2xl p-8 text-center hover:border-accent transition-colors cursor-pointer flex flex-col items-center justify-center">
                   <Camera className="h-10 w-10 text-muted-foreground mb-3" />
                   <p className="text-muted-foreground text-sm">Click to upload from your device</p>
-                  <input id="waste-upload" type="file" accept="image/*" multiple className="hidden" onChange={handleFileChange} />
+                   <input id="waste-upload" type="file" accept="image/*" multiple className="hidden" onChange={handleFileChange} />
                 </label>
                 {previews.length > 0 && (
                   <div className="flex flex-wrap gap-2">
@@ -138,7 +209,7 @@ const Dashboard = () => {
                       <div key={i} className="relative w-16 h-16 rounded-xl overflow-hidden border border-border">
                         <img src={src} alt={`Preview ${i + 1}`} className="w-full h-full object-cover" />
                         <button
-                          onClick={() => setPreviews((p) => p.filter((_, idx) => idx !== i))}
+                          onClick={() => handleRemovePreview(i)}
                           className="absolute top-0 right-0 bg-destructive text-destructive-foreground rounded-bl-lg p-0.5 text-xs leading-none"
                         >
                           ✕
@@ -153,9 +224,11 @@ const Dashboard = () => {
                   <label className="block text-sm font-medium mb-2">Location</label>
                   <div className="relative">
                     <MapPin className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-                    <input
+                     <input
                       className="w-full pl-10 px-4 py-3 rounded-xl border border-border bg-background text-foreground focus:ring-2 focus:ring-accent focus:outline-none"
                       placeholder="Enter location or use auto-detect"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
                     />
                   </div>
                 </div>
@@ -165,42 +238,57 @@ const Dashboard = () => {
                     rows={3}
                     className="w-full px-4 py-3 rounded-xl border border-border bg-background text-foreground focus:ring-2 focus:ring-accent focus:outline-none resize-none"
                     placeholder="Describe the waste collected..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
                   />
                 </div>
-                <Button variant="lime" size="lg" className="w-full">
-                  <Upload className="h-4 w-4 mr-1" /> Submit
+                <Button variant="lime" size="lg" className="w-full" onClick={handleSubmit} disabled={submitting}>
+                  <Upload className="h-4 w-4 mr-1" /> {submitting ? "Submitting..." : "Submit"}
                 </Button>
               </div>
             </div>
           </div>
 
           {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-card rounded-2xl p-6 shadow-card">
-              <h4 className="font-heading font-semibold mb-4">📊 Monthly Submissions</h4>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={barData}>
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} className="text-xs" />
-                  <YAxis axisLine={false} tickLine={false} className="text-xs" />
-                  <Tooltip />
-                  <Bar dataKey="submissions" fill="hsl(150, 68%, 55%)" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="bg-card rounded-2xl p-6 shadow-card">
-              <h4 className="font-heading font-semibold mb-4">🔄 Verification Status</h4>
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" label>
-                    {pieData.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+          {(() => {
+            const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const barData = months.map((month, idx) => ({
+              month,
+              submissions: userSubmissions.filter((s: any) => new Date(s.created_at).getMonth() === idx).length,
+            }));
+            const pieData = [
+              { name: "Verified", value: verified },
+              { name: "Pending", value: pendingCount },
+            ];
+            return (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-card rounded-2xl p-6 shadow-card">
+                  <h4 className="font-heading font-semibold mb-4">📊 Monthly Submissions</h4>
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={barData}>
+                      <XAxis dataKey="month" axisLine={false} tickLine={false} className="text-xs" />
+                      <YAxis axisLine={false} tickLine={false} className="text-xs" />
+                      <Tooltip />
+                      <Bar dataKey="submissions" fill="hsl(150, 68%, 55%)" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="bg-card rounded-2xl p-6 shadow-card">
+                  <h4 className="font-heading font-semibold mb-4">🔄 Verification Status</h4>
+                  <ResponsiveContainer width="100%" height={250}>
+                    <PieChart>
+                      <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" label>
+                        {pieData.map((_, i) => (
+                          <Cell key={i} fill={PIE_COLORS[i]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Submissions table */}
           <div className="bg-card rounded-2xl p-6 shadow-card overflow-x-auto">
@@ -215,23 +303,23 @@ const Dashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {submissions.map((s, i) => (
-                  <tr key={i} className="border-b border-border/50 last:border-none">
-                    <td className="py-3">{s.date}</td>
+                {userSubmissions.map((s: any) => (
+                  <tr key={s.id} className="border-b border-border/50 last:border-none">
+                    <td className="py-3">{new Date(s.created_at).toLocaleDateString()}</td>
                     <td className="py-3">{s.location}</td>
                     <td className="py-3">
                       <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
-                        s.status === "Approved" ? "bg-accent/10 text-accent" :
-                        s.status === "Pending" ? "bg-secondary/10 text-secondary" :
+                        s.status === "approved" ? "bg-accent/10 text-accent" :
+                        s.status === "pending" ? "bg-secondary/10 text-secondary" :
                         "bg-destructive/10 text-destructive"
                       }`}>
-                        {s.status === "Approved" && <CheckCircle className="h-3 w-3" />}
-                        {s.status === "Pending" && <Clock className="h-3 w-3" />}
-                        {s.status === "Rejected" && <XCircle className="h-3 w-3" />}
+                        {s.status === "approved" && <CheckCircle className="h-3 w-3" />}
+                        {s.status === "pending" && <Clock className="h-3 w-3" />}
+                        {s.status === "rejected" && <XCircle className="h-3 w-3" />}
                         {s.status}
                       </span>
                     </td>
-                    <td className="py-3 font-semibold">{s.points > 0 ? `+${s.points}` : "—"}</td>
+                    <td className="py-3 font-semibold">{s.points_awarded > 0 ? `+${s.points_awarded}` : "—"}</td>
                   </tr>
                 ))}
               </tbody>
