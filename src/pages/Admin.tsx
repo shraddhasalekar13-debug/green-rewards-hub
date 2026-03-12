@@ -39,10 +39,17 @@ const Admin = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('waste_submissions')
-        .select('*, profiles!waste_submissions_user_id_fkey(display_name)')
+        .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data;
+      // Fetch profile names for each unique user_id
+      const userIds = [...new Set(data.map((s: any) => s.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, display_name')
+        .in('user_id', userIds);
+      const profileMap = Object.fromEntries((profiles || []).map((p: any) => [p.user_id, p.display_name]));
+      return data.map((s: any) => ({ ...s, display_name: profileMap[s.user_id] || 'Unknown' }));
     },
   });
 
